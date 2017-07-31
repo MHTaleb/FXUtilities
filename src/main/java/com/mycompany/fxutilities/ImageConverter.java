@@ -10,9 +10,10 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 /**
  *
@@ -20,13 +21,26 @@ import java.nio.channels.FileChannel;
  */
 public class ImageConverter {
 
-    public static void readFile(Long id, byte[] data, String extension) throws IOException {
-        File outfile = new File("out/"+extension+"/data" + id + "."+extension);
+    public static File readFile(Long id, byte[] data, String extension) throws IOException {
+        if (!Files.exists(Paths.get("/out/" + extension))) {
+            Files.createDirectory(Paths.get("/out/"));
+            Files.createDirectory(Paths.get("/out/" + extension));
+        }
+        if (!Files.exists(Paths.get("/out/" + extension + "/data" + id + "." + extension))) {
+            Files.createFile(Paths.get("/out/" + extension + "/data" + id + "." + extension));
+
+        }
+        File outfile = new File("/out/" + extension + "/data" + id + "." + extension);
+        if (!outfile.exists()) {
+            outfile.createNewFile();
+        }
         writeFile(outfile, data);
+        return outfile;
 
     }
-    public static String getExtension(String path){
-        return path.substring(path.length()-3, path.length());
+
+    public static String getExtension(String path) {
+        return path.substring(path.length() - 3, path.length());
     }
 
     private static void writeFile(File file, byte[] data) throws IOException {
@@ -42,26 +56,31 @@ public class ImageConverter {
 
     }
 
-    public static byte[] toByteArray(String path) throws FileNotFoundException, FileNotFoundException, IOException {
-        try (FileInputStream fi = new FileInputStream(path)) {
-            System.out.println("loaded : " + fi.available());
-            try (FileChannel fic = fi.getChannel()) {
-                ByteBuffer buffer = ByteBuffer.allocateDirect(1024); // direct buffer
-                long size = fic.size(), n = 0;
-                // time to play the old game - clear, read, flip and write
-                while (n < size) {
-                    buffer.clear(); // makes the buffer ready by resetting the pointers
-                    if (fic.read(buffer) < 0) // fill the buffer by reading from channel
-                    {
-                        break;
-                    }
-                    buffer.flip(); // makes the buffer writing the data just read
-                    // buffer.
-                    // n+= fcout.write(buffer);
-                }
-            } // direct buffer
+    public static byte[] toByteArray(File file) throws FileNotFoundException, FileNotFoundException, IOException {
+        InputStream is = new FileInputStream(file);
+        // Get the size of the file
+        long length = file.length();
+        // You cannot create an array using a long type.
+        // It needs to be an int type.
+        // Before converting to an int type, check
+        // to ensure that file is not larger than Integer.MAX_VALUE.
+        if (length > Integer.MAX_VALUE) {
+            // File is too large
         }
-
-        return null;
+        // Create the byte array to hold the data
+        byte[] bytes = new byte[(int) length];
+        // Read in the bytes
+        int offset = 0;
+        int numRead = 0;
+        while (offset < bytes.length && (numRead = is.read(bytes, offset, bytes.length - offset)) >= 0) {
+            offset += numRead;
+        }
+        // Ensure all the bytes have been read in
+        if (offset < bytes.length) {
+            throw new IOException("Could not completely read file " + file.getName());
+        }
+        // Close the input stream and return bytes
+        is.close();
+        return bytes;
     }
 }
